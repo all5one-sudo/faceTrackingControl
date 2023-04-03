@@ -6,5 +6,5 @@ Face tracking PID project for Control Systems II course.
 
 - Luis Enrique Cruz
 - Eduardo Andre Perez
-- Santiago Recalde
+- [Santiago Recalde](https://github.com/BestdarkFallest)
 - [Federico Villar](https://github.com/all5one-sudo)
