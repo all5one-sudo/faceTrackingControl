@@ -56,7 +56,7 @@ def detectFace():
                         w = int(_w)
                         h = int(_h)
                         maxArea = w*h
-                # Se elige a la cara de mayor área
+                # Se elige a la cara de mayor área, ver tema de minimo reconocible
                 if maxArea > 0 :
                     # Se inicializa el tracker
                     tracker.start_track(originalImage,dlib.rectangle((x-10),(y-20),(x+w+10),(y+h+20)))
@@ -77,7 +77,7 @@ def detectFace():
                     t_w = int(tracked_position.width())
                     t_h = int(tracked_position.height())
                     # Obtenidas las posiciones, se puede imprimir la posición en el eje x
-                    xValue = ((t_x+t_w/2)*(1280/420)-640)
+                    xValue = ((t_x+t_w/2)*(1280/420)-725) # convertir a radianes!
                     xValueString = 'X: ' + str(xValue.__round__(2))
                     cv2.rectangle(auxImage,(t_x, t_y),(t_x + t_w , t_y + t_h),trackerColor,2)
                 else:
