@@ -16,7 +16,7 @@ def detectFace():
     # Este es el faceTracker del paquete dlib
     tracker = dlib.correlation_tracker()
     # Se inicializa la variable a trackear en 0, posición inicial
-    trackingFace = 0
+    trackingFace = 0 # true o false, 1 o 0
     trackerColor = (0,165,255)
     xValueString = ''
     # Inicia el proceso de reconocimiento propiamente dicho
@@ -57,7 +57,7 @@ def detectFace():
                         h = int(_h)
                         maxArea = w*h
                 # Se elige a la cara de mayor área, ver tema de minimo reconocible
-                if maxArea > 0 :
+                if maxArea > 0:
                     # Se inicializa el tracker
                     tracker.start_track(originalImage,dlib.rectangle((x-10),(y-20),(x+w+10),(y+h+20)))
                     # Se pone el tracker en True, para saber que se está trackeando una cara
@@ -76,10 +76,10 @@ def detectFace():
                     t_y = int(tracked_position.top())
                     t_w = int(tracked_position.width())
                     t_h = int(tracked_position.height())
-                    # Obtenidas las posiciones, se puede imprimir la posición en el eje x
-                    xValue = ((t_x+t_w/2)*(1280/420)-725) # convertir a radianes!
+                    # Obtenidas las coordenadas, se puede imprimir la posición en el eje x
+                    xValue = ((t_x+t_w/2)*(1280/480)-640) # convertir a radianes!
                     xValueString = 'X: ' + str(xValue.__round__(2))
-                    cv2.rectangle(auxImage,(t_x, t_y),(t_x + t_w , t_y + t_h),trackerColor,2)
+                    cv2.rectangle(auxImage,(t_x, t_y),(t_x + t_w , t_y + t_h),trackerColor,3)
                 else:
                     # Si la calidad no es suficiente, se vuelve a leer la imagen e intentar trackear
                     trackingFace = 0
