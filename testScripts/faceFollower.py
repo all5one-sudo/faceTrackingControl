@@ -1,3 +1,5 @@
+# Ejecutar: sudo pip3 install pigpio
+
 import cv2
 import dlib
 import RPi.GPIO as GPIO
