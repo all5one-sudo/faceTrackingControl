@@ -19,7 +19,7 @@ GPIO.output(ENA,GPIO.LOW)
 # Delay entre pasos
 delay = 0.002
 # Error en pixeles
-pixelError = 200
+pixelError = 50
 
 # Inicializo el cascade classifier de imagenes para OpenCV
 faceCascade = cv2.CascadeClassifier('/usr/local/lib/python3.7/dist-packages/cv2/data/haarcascade_frontalface_default.xml')
@@ -108,8 +108,8 @@ def trackFace():
                     trackingFace = 0
                 # El límite del pixelError es seteado en 200 a propósito en la etapa de pruebas para eliminar ruido
                 # Si se detecta que la cara está a la derecha se mueve el motor en esa dirección
-                if xValue < -pixelError:
-                    GPIO.output(DIR,GPIO.HIGH )
+                '''if xValue < -pixelError:
+                    GPIO.output(DIR,GPIO.HIGH)
                     GPIO.output(STEP, GPIO.HIGH)
                     sleep(delay)
                     GPIO.output(STEP, GPIO.LOW)
@@ -120,7 +120,9 @@ def trackFace():
                     GPIO.output(STEP, GPIO.HIGH)
                     sleep(delay)
                     GPIO.output(STEP, GPIO.LOW)
-                    sleep(delay)
+                    sleep(delay)'''
+                # Se llama a la funcion para rotar el motor
+                rotateStepper(xValue)
             # Se reescala la imagen nuevamente
             largeResult = cv2.resize(auxImage,(OUTPUT_SIZE_WIDTH,OUTPUT_SIZE_HEIGHT))
             printImage = cv2.putText(largeResult, xValueString, (200, 200), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 255))
@@ -132,7 +134,31 @@ def trackFace():
         cv2.destroyAllWindows()
         exit(0)
 
+# Funcion que rota el paso a paso dependiendo del error medido por la camara
+def rotateStepper(error):
+    print('Rotando motor')
+    # Se calculan cuantos pasos hay que ejecutar
+    steps = round(18*abs(error)/240)
+    # Dos casos, por si se tiene que girar en un sentido u otro
+    if(error < 0):
+        GPIO.output(DIR,GPIO.HIGH)
+        i = 0
+        while(i < steps):
+            GPIO.output(STEP, GPIO.HIGH)
+            sleep(delay)
+            GPIO.output(STEP, GPIO.LOW)
+            sleep(delay)
+            i = i+1
+    else:
+        GPIO.output(DIR,GPIO.LOW)
+        i = 0
+        while(i < steps):
+            GPIO.output(STEP, GPIO.HIGH)
+            sleep(delay)
+            GPIO.output(STEP, GPIO.LOW)
+            sleep(delay)
+            i = i+1
+
 # Programa principal
 if __name__ == '__main__':
     trackFace()
-()
