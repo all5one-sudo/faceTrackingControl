@@ -1,0 +1,155 @@
+import cv2
+import dlib
+import RPi.GPIO as GPIO
+from time import sleep
+import math as m
+
+# Configurar los pines GPIO para el control del motor
+ENA = 23
+IN1 = 24
+IN2 = 25
+STEP = 18
+DIR = 4
+
+# Setup de GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(DIR, GPIO.OUT)
+GPIO.setup(STEP, GPIO.OUT)
+GPIO.setup(ENA, GPIO.OUT)
+GPIO.output(ENA, GPIO.LOW)
+
+# Variables iniciales
+xValue = 2
+T0 = 0.06
+delay = 0.002
+
+# Inicializo el cascade classifier de imagenes para OpenCV
+faceCascade = cv2.CascadeClassifier(
+    '/usr/local/lib/python3.7/dist-packages/cv2/data/haarcascade_frontalface_default.xml'
+)
+
+# Dimensiones de la imagen de salida
+OUTPUT_SIZE_WIDTH = 1280
+OUTPUT_SIZE_HEIGHT = 720
+
+
+# Función que detecta rostros y mueve el Nema 17
+def detectFace():
+    # Se inicializa la webcam de la posición 0, es decir, la que está por defecto
+    sampleVideo = cv2.VideoCapture(0)
+    # Se crea una ventana llamada "Reconocimiento" que mostrará la imagen con la cara remarcada
+    cv2.namedWindow("Reconocimiento", cv2.WINDOW_AUTOSIZE)
+    # Este es el faceTracker del paquete dlib
+    tracker = dlib.correlation_tracker()
+    # Se inicializa la variable a trackear en 0, posición inicial
+    trackingFace = 0
+    trackerColor = (0, 165, 255)
+    xValueString = ''
+    # Inicia el proceso de reconocimiento propiamente dicho
+    try:
+        '''Bucle infinito para que la imagen sea un stream, la excepción se lanza en el momento en
+        que se aprieta Ctrl+C en terminal, y con eso salgo del bucle'''
+        while True:
+            # Se lee el último frame del video
+            rc, fullImage = sampleVideo.read()
+            #fullImage = cv2.rotate(fullImage,cv2.ROTATE_180)
+            # Para procesar de la mejor manera y optimizar recursos, se reescala la imagen
+            originalImage = cv2.resize(fullImage, (480, 320))
+            # Si se presiona Q se cierran todas las ventanas que estén abiertas
+            # No logré que funcione sin esto, me parece que está demás
+            pressedKey = cv2.waitKey(2)
+            if pressedKey == ord('Q'):
+                cv2.destroyAllWindows()
+                exit(0)
+            # Se crea una copia del último frame para dibujarle el rectángulo
+            auxImage = originalImage.copy()
+            # Si no se está trackeando ninguna cara, entonces se trata de buscar alguna
+            if (not trackingFace):
+                # Se pasa la imagen a escala de grises para el análisis
+                grayImage = cv2.cvtColor(originalImage, cv2.COLOR_BGR2GRAY)
+                # Se usa haarcascade para reconocer los rostros
+                faces = faceCascade.detectMultiScale(grayImage, 1.3, 5)
+                # Se inicializan las variables necesarias en 0
+                maxArea = 0
+                x = 0
+                y = 0
+                w = 0
+                h = 0
+                # Se calculan las áreas de las caras
+                for (_x, _y, _w, _h) in faces:
+                    if _w * _h > maxArea:
+                        x = int(_x)
+                        y = int(_y)
+                        w = int(_w)
+                        h = int(_h)
+                        maxArea = w * h
+                # Se elige a la cara de mayor área, ver tema de minimo reconocible
+                if maxArea > 0:
+                    # Se inicializa el tracker
+                    tracker.start_track(
+                        originalImage,
+                        dlib.rectangle((x - 10), (y - 20), (x + w + 10),
+                                       (y + h + 20)))
+                    # Se pone el tracker en True, para saber que se está trackeando una cara
+                    trackingFace = 1
+            # Se obtiene la posición de la cara
+            '''xValue = ((x+(w/2))-640)*(1280/480)
+            xValueString = 'X: ' + str(xValue)'''
+            # Se comprueba si realmente se está trackeando una cara
+            if trackingFace:
+                # Se actualiza el tracker
+                trackingQuality = tracker.update(originalImage)
+                # Si la calidad del tracker es suficiente se obtienen las posiciones
+                if trackingQuality >= 4:
+                    tracked_position = tracker.get_position()
+                    t_x = int(tracked_position.left())
+                    t_y = int(tracked_position.top())
+                    t_w = int(tracked_position.width())
+                    t_h = int(tracked_position.height())
+                    # Obtenidas las posiciones, se puede imprimir la posición en el eje x
+                    #xValue = ((t_x+t_w/2)*(1280/480)-640) # convertir a radianes!
+                    xValue = ((t_x + t_w / 2) - 240)
+                    xValueString = 'X: ' + str(xValue.__round__(2))
+                    cv2.rectangle(auxImage, (t_x, t_y), (t_x + t_w, t_y + t_h),
+                                  trackerColor, 2)
+                else:
+                    # Si la calidad no es suficiente, se vuelve a leer la imagen e intentar trackear
+                    trackingFace = 0
+                theta = 32.5 * m.pi / 180
+                error = m.atan(0.00265 * xValue)
+                if xValue != 0:
+                    dela = theta * T0 / (8 * error)
+                    delay = abs(dela)
+                else:
+                    dela = theta * T0 / (8 * m.atan(0.00265 * 2))
+                    delay = abs(dela)
+                if xValue < -20:
+                    GPIO.output(DIR, GPIO.HIGH)
+                    GPIO.output(STEP, GPIO.HIGH)
+                    sleep(delay)
+                    GPIO.output(STEP, GPIO.LOW)
+                    #sleep(delay)
+                elif xValue > 20:
+                    GPIO.output(DIR, GPIO.LOW)
+                    GPIO.output(STEP, GPIO.HIGH)
+                    sleep(delay)
+                    GPIO.output(STEP, GPIO.LOW)
+                # sleep(delay)
+            # Se reescala la imagen nuevamente
+            largeResult = cv2.resize(auxImage,
+                                     (OUTPUT_SIZE_WIDTH, OUTPUT_SIZE_HEIGHT))
+            printImage = cv2.putText(largeResult, xValueString, (200, 200),
+                                     cv2.FONT_HERSHEY_SIMPLEX, 3,
+                                     (0, 255, 255))
+            # Se abre una ventana para mostrar la imagen con el rectángulo
+            cv2.imshow("Reconocimiento", printImage)
+
+    # El comando Ctrl+C termina el proceso
+    except KeyboardInterrupt as e:
+        cv2.destroyAllWindows()
+        exit(0)
+
+
+# Programa principal
+if __name__ == '__main__':
+    detectFace()
